@@ -1,17 +1,17 @@
 /**
- * Create CloudFlare DNS Record Action for GitHub
- * https://github.com/marketplace/actions/cloudflare-create-dns-record
+ * This Action uses Curl to create of update DNS record with CloudFlare API
+ * read documentation for CF API: https://api.cloudflare.com/#dns-records-for-a-zone-list-dns-records
  */
 
 const path = require("path");
+
 const cp = require("child_process");
 
 const getCurrentRecordId = () => {
-  //https://api.cloudflare.com/#dns-records-for-a-zone-list-dns-records
   const { status, stdout } = cp.spawnSync("curl", [
     ...["--header", `Authorization: Bearer ${process.env.INPUT_TOKEN}`],
     ...["--header", "Content-Type: application/json"],
-    `https://api.cloudflare.com/client/v4/zones/${process.env.INPUT_ZONE}/dns_records`,
+    `https://api.cloudflare.com/client/v4/zones/${process.env.INPUT_ZONE}/dns_records?name=${encodeURIComponent(process.env.INPUT_NAME)}`,
   ]);
 
   if (status !== 0) {
@@ -25,18 +25,10 @@ const getCurrentRecordId = () => {
     process.exit(1);
   }
 
-  const name = process.env.INPUT_NAME;
-  const record = result.find((x) => x.name === name);
-
-  if (!record) {
-    return null
-  }
-
-  return record.id;
+  return result[0] ? result[0].id : null;
 };
 
 const createRecord = () => {
-  // https://api.cloudflare.com/#dns-records-for-a-zone-create-dns-record
   const { status, stdout } = cp.spawnSync("curl", [
     ...["--request", "POST"],
     ...["--header", `Authorization: Bearer ${process.env.INPUT_TOKEN}`],
@@ -70,7 +62,6 @@ const createRecord = () => {
 
 const updateRecord = (id) => {
   console.log(`Record exists with ${id}, updating...`);
-  // https://api.cloudflare.com/#dns-records-for-a-zone-update-dns-record
   const { status, stdout } = cp.spawnSync("curl", [
     ...["--request", "PUT"],
     ...["--header", `Authorization: Bearer ${process.env.INPUT_TOKEN}`],
@@ -107,4 +98,5 @@ if (id) {
   updateRecord(id);
   process.exit(0);
 }
+
 createRecord();
